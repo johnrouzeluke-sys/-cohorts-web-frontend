@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // Import useRef
 import { initializeApp } from "firebase/app";
 import { getAuth, signInAnonymously } from "firebase/auth";
 import { getFirestore, collection, getDocs, doc, writeBatch, onSnapshot, updateDoc } from "firebase/firestore";
@@ -24,92 +24,217 @@ const auth = getAuth(app);
 
 
 // Raw data for cohort sessions provided by the user (from CSV)
-const rawCohortSessionData = `Cohort/Session,Date,Local Time,Time (ET),Country,Time Notes,Materials,Instruction Language,Instructor,TA,Notes,Zoom Link
-Belgium Cohort 1: KICKOFF,2025-09-16,1:00 pm-2:00 pm CET ,7:00 am-8:00 am,Belgium,,English material,French/Dutch,Marlene Boura,Joël Hogeveen,"Marlene rudimentary dutch, TA may need to take lead on dutch questions.  But cohort to be largely english",https://datasociety.zoom.us/j/84532058897?pwd=jOlqHTvbf0xqskUYm5rIcqFbOtxv9Z.1
-Belgium Cohort 1: Session 1,2025-09-22,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,Meeting ID: 845 3205 8897
-Belgium Cohort 1: Session 2,2025-09-24,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,Passcode: 637708
-Belgium Cohort 1: Session 3,2025-09-29,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,
-Belgium Cohort 1: Session 4,2025-10-01,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,
-Belgium Cohort 2: KICKOFF,2025-10-28,1:00-2:00 pm CET,8:00 am-9:00 am,Belgium,Clock change,English material,French/Dutch,,Joël Hogeveen,10/28/2025 Originally changed per client,
-Belgium Cohort 2: Session 1,2025-11-03,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/3/2025 Originally changed per client,
-Belgium Cohort 2: Session 2,2025-11-05,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/5/2025 Originally changed per client,
-Belgium Cohort 2: Session 3,2025-11-10,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/10/2025 Originally changed per client,
-Belgium Cohort 2: Session 4,2025-11-12,1:00 pm-4:00 pm CET ,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/12/2025 Originally changed per client,
-Romania Cohort 1: KICKOFF,2025-09-02,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,"Instructor signed and met with NN, TA Contracted",https://datasociety.zoom.us/j/89337495913?pwd=jlhwxFaTi6XWmd4PxavmkFaWpFaaoT.1
-Romania Cohort 1: Session 1,2025-09-09,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Meeting ID: 893 3749 5913
-Romania Cohort 1: Session 2,2025-09-11,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Passcode: 994577
-Romania Cohort 1: Session 3,2025-09-16,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 1: Session 4,2025-09-18,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Greece Cohort 1: KICKOFF,2025-09-03,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,"Instructor signed and met with NN, TA Contracted",https://datasociety.zoom.us/j/82193492193?pwd=kLN5qwdTAlW9IiIqO9YZpRU2VoQmI8.1
-Greece Cohort 1: Session 1,2025-09-08,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Meeting ID: 821 9349 2193
-Greece Cohort 1: Session 2,2025-09-10,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Passcode: 873968
-Greece Cohort 1: Session 3,2025-09-15,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Greece Cohort 1: Session 4,2025-09-17,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Netherlands Cohort 1: KICKOFF,2025-09-17,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,https://datasociety.zoom.us/j/82747440665?pwd=QjN7ZVL8zszxCSTbbnnavobZsYxe50.1
-Netherlands Cohort 1: Session 1,2025-09-22,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Meeting ID: 827 4744 0665
-Netherlands Cohort 1: Session 2,2025-09-24,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Passcode: 912452
-Netherlands Cohort 1: Session 3,2025-09-29,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
-Netherlands Cohort 1: Session 4,2025-10-01,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
-English Cohort 1: KICKOFF,2025-09-22,1:00 pm-2:00 pm CET,7:00 am-8:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,https://datasociety.zoom.us/j/85494174536?pwd=Qd6lZRpTwd3qYMbfVx7tMplP9OdDW2.1
-English Cohort 1: Session 1,2025-09-30,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,Meeting ID: 854 9417 4536
-English Cohort 1: Session 2,2025-10-02,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,Passcode: 914855
-English Cohort 1: Session 3,2025-10-07,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,
-English Cohort 1: Session 4,2025-10-09,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,
-Japan Cohort 1: KICKOFF,2025-09-22,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,TC,Japanese Material,Japanese,,Yoshihara Keisuke,Need to add I and TA to Zoom and TC when selected,https://datasociety.zoom.us/j/83247839734?pwd=X46XS9Cagb9loTf0PO5eEM4qxap0i2.1
-Japan Cohort 1: Session 1,2025-09-29,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,,Yoshihara Keisuke,,Meeting ID: 832 4783 9734
-Japan Cohort 1: Session 2,2025-10-01,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,,Yoshihara Keisuke,,Passcode: 228762
-Japan Cohort 1: Session 3,2025-10-08,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,,Yoshihara Keisuke,,
-Japan Cohort 1: Session 4,2025-10-14,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,,Yoshihara Keisuke,,
-Japan Cohort 2: KICKOFF,2025-09-22,10:30 am-11:30 am JST,9:30 pm-10:30 pm,Japan,,Japanese Material,Japanese,,,,https://datasociety.zoom.us/j/88959359003?pwd=bTPXQ4daPUwGPEdtbsGDHhkpKQbSSm.1
-Japan Cohort 2: Session 1,2025-09-30,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,Meeting ID: 889 5935 9003
-Japan Cohort 2: Session 2,2025-10-02,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,Passcode: 775325
-Japan Cohort 2: Session 3,2025-10-07,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Japan Cohort 2: Session 4,2025-10-09,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Romania Cohort 2: KICKOFF,2025-10-01,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,https://datasociety.zoom.us/j/82680745159?pwd=1vSLJB6r8vCMbQRZVxjPCGbPwgtK5E.1
-Romania Cohort 2: Session 1,2025-10-06,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Meeting ID: 826 8074 5159
-Romania Cohort 2: Session 2,2025-10-08,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Passcode: 799089
-Romania Cohort 2: Session 3,2025-10-20,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 2: Session 4,2025-10-22,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Slovakia Cohort 1: KICKOFF,2025-10-01,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Slovakia,,Slovak Materials,Local/Czech,,Martina Kuchtová,,
-Slovakia Cohort 1: Session 1,2025-10-06,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,,Martina Kuchtová,,
-Slovakia Cohot 1: Session 2,2025-10-08,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,,Martina Kuchtová,,
-Slovakia Cohort 1: Session 3,2025-11-04,9:00 am-12:00 pm CET,3:00 am-6:00 am,Poland,Clock change,English material,Polish,Anna M. Pastwa,,,
-Slovakia Cohort 1: Session 4,2025-11-06,9:00 am-12:00 pm CET,3:00 am-6:00 am,Poland,Clock change,English material,Polish,Anna M. Pastwa,,,
-Spain Cohort 1: KICKOFF,2025-10-22,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,,
-Spain Cohort 1: Session 1,2025-11-03,1:00 pm-4:00 pm CET,8:00 am-11:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,,
-Spain Cohort 1: Session 2,2025-11-05,1:00 pm-4:00 pm CET,8:00 am-11:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,,
-Spain Cohort 1: Session 3,2025-11-10,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,,
-Spain Cohort 1: Session 4,2025-11-12,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,,
-Belgium Cohort 3: KICKOFF,2025-11-03,1:00-2:00 pm CET,8:00 am-9:00 am,Belgium,Clock change,English material,French/Dutch,,Joël Hogeveen,10/28/2025 Originally changed per client,
-Belgium Cohort 3: Session 1,2025-11-10,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/3/2025 Originally changed per client,
-Belgium Cohort 3: Session 2,2025-11-12,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/5/2025 Originally changed per client,
-Belgium Cohort 3: Session 3,2025-11-17,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/10/2025 Originally changed per client,
-Belgium Cohort 3: Session 4,2025-11-19,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,Joël Hogeveen,11/12/2025 Originally changed per client,
-Romania Cohort 3: KICKOFF,2025-11-03,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 3: Session 1,2025-11-10,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 3: Session 2,2025-11-12,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 3: Session 3,2025-11-17,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Romania Cohort 3: Session 4,2025-11-19,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
-Greece Cohort 3: KICKOFF,2025-11-04,9:00 am-10:00 am CET,3:00-4:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Greece Cohort 3: Session 1,2025-11-10,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Greece Cohort 3: Session 2,2025-11-13,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Greece Cohort 3: Session 3,2025-11-18,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Greece Cohort 3: Session 4,2025-11-20,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
-Japan Cohort 5: KICKOFF,2025-11-04,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,,Japanese Material,Japanese,,,,
-Japan Cohort 5: Session 1,2025-11-10,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Japan Cohort 5: Session 2,2025-11-12,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Japan Cohort 5: Session 3,2025-11-17,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Japan Cohort 5: Session 4,2025-11-19,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,
-Poland Cohort 2: KICKOFF,2026-03-09,9:00 am-10:00 am,4:00 am-5:00 am,Poland,Clock change,English material,Polish,,,,
-Poland Cohort 2: Session 1,2026-03-16,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,
-Poland Cohort 2: Session 2,2026-03-18,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,
-Poland Cohort 2: Session 3,2026-03-23,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,
-Poland Cohort 2: Session 4,2026-03-25,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,
-Netherlands Cohort 16: KICKOFF,2026-03-10,9:00 am-10:00 am,4:00 am-5:00 am,Netherlands,Clock change,Dutch Material,Dutch,,Michelle Hogeveen,,
-Netherlands Cohort 16: Session 1,2026-03-17,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,,Michelle Hogeveen,,
-Netherlands Cohort 16: Session 2,2026-03-19,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,,Michelle Hogeveen,,
-Netherlands Cohort 16: Session 3,2026-03-25,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,,Michelle Hogeveen,,
-Netherlands Cohort 16: Session 4,2026-03-26,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,,Michelle Hogeveen,,`;
+const rawCohortSessionData = `Cohort/Session,Date,Local Time,Time (ET),Country,Time Notes,Langague for Materials,Instruction Language,Instructor,TA,DS Support,Notes,Zoom Link
+Cohort 13 (English/Romanian) KICKOFF,Sep 2,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,Payton Worth,"Instructor signed and met with NN, TA Contracted",https://datasociety.zoom.us/j/89337495913?pwd=jlhwxFaTi6XWmd4PxavmkFaWpFaaoT.1
+Cohort 13 (English/Romanian) Session 1,Sep 9,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Meeting ID: 893 3749 5913
+Cohort 13 (English/Romanian) Session 2,Sep 11,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Passcode: 994577
+Cohort 13 (English/Romanian) Session 3,Sep 16,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 13 (English/Romanian) Session 4,Sep 18,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,TC,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 14(English/Greek) KICKOFF,Sep 3,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Instructor signed and met with NN, TA Contracted,https://datasociety.zoom.us/j/82193492193?pwd=kLN5qwdTAlW9IiIqO9YZpRU2VoQmI8.1
+Cohort 14(English/Greek) Session 1,Sep 8,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Meeting ID: 821 9349 2193
+Cohort 14(English/Greek) Session 2,Sep 10,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Passcode: 873968
+Cohort 14(English/Greek) Session 3,Sep 15,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 14(English/Greek) Session 4,Sep 17,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,TC,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 15Belgium (English/ French & Dutch) KICKOFF,Sep 16,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Belgium,TC,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,Marlene rudimentary dutch, TA may need to take lead on dutch questions. But cohort to be largely english,https://datasociety.zoom.us/j/84532058897?pwd=jOlqHTvbf0xqskUYm5rIcqFbOtxv9Z.1
+Cohort 15Belgium (English/ French & Dutch) Session 1,Sep 22,12:30 pm-3:30 pm CET,6:30 am-9:30 am,Belgium,TC,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,Meeting ID: 845 3205 8897
+Cohort 15Belgium (English/ French & Dutch) Session 2,Sep 24,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,TC,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,Passcode: 637708
+Cohort 15Belgium (English/ French & Dutch) Session 3,Sep 29,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,TC,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,
+Cohort 15Belgium (English/ French & Dutch) Session 4,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,TC,English material,French/Dutch,Marlene Boura,Joël Hogeveen,,
+Cohort 16(Dutch) KICKOFF,Sep 17,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,https://datasociety.zoom.us/j/82747440665?pwd=QjN7ZVL8zszxCSTbbnnavobZsYxe50.1
+Cohort 16(Dutch) Session 1,Sep 22,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Meeting ID: 827 4744 0665
+Cohort 16(Dutch) Session 2,Sep 24,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Passcode: 912452
+Cohort 16(Dutch) Session 3,Sep 29,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
+Cohort 16(Dutch) Session 4,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
+Cohort 17 (English) KICKOFF,Sep 22,1:00 pm-2:00 pm CET,7:00 am-8:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,Need to add I and TA to Zoom and TC when selected,https://datasociety.zoom.us/j/85494174536?pwd=Qd6lZRpTwd3qYMbfVx7tMplP9OdDW2.1
+Cohort 17 (English) Session 1,Sep 30,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,Meeting ID: 854 9417 4536
+Cohort 17 (English) Session 2,Oct 2,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,Passcode: 914855
+Cohort 17 (English) Session 3,Oct 7,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,
+Cohort 17 (English) Session 4,Oct 9,1:00 pm-4:00 pm CET,7:00 am-10:00 am,English,TC,English material,English,Ryan Ellison,Ashfin Enayet,,
+Cohort 18(Japanese) KICKOFF,Sep 22,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,TC,Japanese Material,Japanese,So Nozaki,Yoshihara Keisuke,,Need to add I and TA to Zoom and TC when selected,https://datasociety.zoom.us/j/83247839734?pwd=X46XS9Cagb9loTf0PO5eEM4qxap0i2.1
+Cohort 18(Japanese) Session 1,Sep 29,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,So Nozaki,Yoshihara Keisuke,,Meeting ID: 832 4783 9734
+Cohort 18(Japanese) Session 2,Oct 1,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,So Nozaki,Yoshihara Keisuke,,Passcode: 228762
+Cohort 18(Japanese) Session 3,Oct 8,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,So Nozaki,Yoshihara Keisuke,,
+Cohort 18(Japanese) Session 4,Oct 14,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,TC,Japanese Material,Japanese,So Nozaki,Yoshihara Keisuke,,
+Cohort 19(Japanese) KICKOFF,Sep 22,10:30 am-11:30 am JST,9:30 pm-10:30 pm,Japan,,Japanese Material,Japanese,So Nozaki,Harkura Namaizumi,,https://datasociety.zoom.us/j/88959359003?pwd=bTPXQ4daPUwGPEdtbsGDHhkpKQbSSm.1
+Cohort 19(Japanese) Session 1,Sep 30,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,Harkura Namaizumi,,Meeting ID: 889 5935 9003
+Cohort 19(Japanese) Session 2,Oct 2,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,Harkura Namaizumi,,Passcode: 775325
+Cohort 19(Japanese) Session 3,Oct 7,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,Harkura Namaizumi,,
+Cohort 19(Japanese) Session 4,Oct 9,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,Harkura Namaizumi,,
+Cohort 20 (English/Romanian) KICKOFF,Oct 1,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,https://datasociety.zoom.us/j/82680745159?pwd=1vSLJB6r8vCMbQRZVxjPCGbPwgtK5E.1
+Cohort 20 (English/Romanian) Session 1,Oct 6,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Meeting ID: 826 8074 5159
+Cohort 20 (English/Romanian) Session 2,Oct 8,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Passcode: 799089
+Cohort 20 (English/Romanian) Session 3,Oct 20,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 20 (English/Romanian) Session 4,Oct 22,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 21(Slovak/Czech) KICKOFF,Oct 1,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,Will need to add instructor and TA to TC and Instructor as Cohost on Zoom,https://datasociety.zoom.us/j/84876784076?pwd=8mfOKXxT4LH6PcguXXg20SqWTaSuyw.1
+Cohort 21(Slovak/Czech) Session 1,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,Meeting ID: 848 7678 4076
+Cohort 21(Slovak/Czech) Session 2,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,Passcode: 285897
+Cohort 21(Slovak/Czech) Session 3,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,
+Cohort 21(Slovak/Czech) Session 4,Oct 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,
+Cohort 22(English/Greek) KICKOFF,Oct 2,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,Will need to add instructor and TA to TC and Instructor as Cohost on Zoom,https://datasociety.zoom.us/j/89982354173?pwd=OUB0IdHQmJdq2Bos3rObAUxlI3MuO5.1
+Cohort 22(English/Greek) Session 1,Oct 7,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Meeting ID: 899 8235 4173
+Cohort 22(English/Greek) Session 2,Oct 9,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Passcode: 347740
+Cohort 22(English/Greek) Session 3,Oct 14,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 22(English/Greek) Session 4,Oct 16,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 23(Czech) KICKOFF,Oct 8,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Czech,,Czech Material,Czech,Lenka Kolarikova,,Will need to add instructor and TA to TC and Instructor as Cohost on Zoom,https://datasociety.zoom.us/j/81680018265?pwd=JJsFdPmZTsCGobzISzyXvkE4Z7msru.1
+Cohort 23(Czech) Session 1,Oct 15,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,Lenka Kolarikova,,Meeting ID: 816 8001 8265
+Cohort 23(Czech) Session 2,Oct 16,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,Lenka Kolarikova,,Passcode: 010994
+Cohort 23(Czech) Session 3,Oct 22,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,Lenka Kolarikova,,
+Cohort 23(Czech) Session 4,Oct 23,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,Lenka Kolarikova,,
+Cohort 24(Dutch) KICKOFF,Oct 9,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,https://datasociety.zoom.us/j/84406590203?pwd=FMNCUWgut4Iz3Eab7baXVdJ0WPwXvS.1
+Cohort 24(Dutch) Session 1,Oct 14,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Meeting ID: 844 0659 0203
+Cohort 24(Dutch) Session 2,Oct 16,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,Passcode: 892694
+Cohort 24(Dutch) Session 3,Oct 21,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
+Cohort 24(Dutch) Session 4,Oct 23,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,TC,Dutch Material,Dutch,Jan Mathijs Harleman,Michelle Hogeveen,,
+Cohort 25(Japanese) English Forward-KICKOFF,Oct 20,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,,English material,Japanese (English Focused),Jens Svensmark,"Need to Add Jens as cohort to zoom, email was not yet activated.",https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 25(Japanese) English Forward Session 1,Oct 27,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,English material,Japanese (English Focused),Jens Svensmark,Will need to add TA to to TC,Meeting ID: 890 0299 8467
+Cohort 25(Japanese) English Forward Session 2,Oct 29,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,English material,Japanese (English Focused),Jens Svensmark,,Passcode: 622385
+Cohort 25(Japanese) English Forward Session 3,Nov 4,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,English material,Japanese (English Focused),Jens Svensmark,,
+Cohort 25(Japanese) English ForwardSession 4,Nov 6,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,English material,Japanese (English Focused),Jens Svensmark,,
+Cohort 26(Japanese) KICKOFF,Oct 21,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 26(Japanese) Session 1,Oct 28,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,,Meeting ID: 890 0299 8467
+Cohort 26(Japanese) Session 2,Oct 30,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,,Passcode: 622385
+Cohort 26(Japanese) Session 3,Nov 5,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,,
+Cohort 26(Japanese) Session 4,Nov 10,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,So Nozaki,,
+Cohort 27(English/Polish) KICKOFF,Oct 21,9:00 am-10:00 am CET,3:00 am-4:00 am,Poland,,English material,Polish,Anna M. Pastwa,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 27(English/Polish) Session 1,Oct 28,9:00 am-12:00 pm CET,4:00 am-7:00 am,Poland,Clock change,English material,Polish,Anna M. Pastwa,,Meeting ID: 890 0299 8467
+Cohort 27(English/Polish) Session 2,Oct 30,9:00 am-12:00 pm CET,4:00 am-7:00 am,Poland,Clock change,English material,Polish,Anna M. Pastwa,,Passcode: 622385
+Cohort 27(English/Polish) Session 3,Nov 4,9:00 am-12:00 pm CET,3:00 am-6:00 am,Poland,,English material,Polish,Anna M. Pastwa,,
+Cohort 27(English/Polish) Session 4,Nov 6,9:00 am-12:00 pm CET,3:00 am-6:00 am,Poland,,English material,Polish,Anna M. Pastwa,,
+Cohort 28(Spanish) KICKOFF,Oct 22,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 28(Spanish) Session 1,Oct 27,1:00 pm-4:00 pm CET,8:00 am-11:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,Meeting ID: 890 0299 8467
+Cohort 28(Spanish) Session 2,Oct 29,1:00 pm-4:00 pm CET,8:00 am-11:00 am,Spain,Clock change,Spanish Materials,Spanish,Nico Lopez,,Passcode: 622385
+Cohort 28(Spanish) Session 3,Nov 3,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,
+Cohort 28(Spanish) Session 4,Nov 5,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,
+Cohort 29Belgium (English/ French & Dutch) KICKOFF,Nov 3,1:00-2:00 pm CET,8:00 am-9:00 am,Belgium,Clock change,English material,French/Dutch,,,10/28/2025 Originally changed per client,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 29Belgium (English/ French & Dutch) Session 1,Nov 10,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,,11/3/2025 Originally changed per client,Meeting ID: 890 0299 8467
+Cohort 29Belgium (English/ French & Dutch) Session 2,Nov 12,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,,11/5/2025 Originally changed per client,Passcode: 622385
+Cohort 29Belgium (English/ French & Dutch) Session 3,Nov 17,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,,11/10/2025 Originally changed per client,
+Cohort 29Belgium (English/ French & Dutch) Session 4,Nov 19,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Belgium,,English material,French/Dutch,,,11/12/2025 Originally changed per client,
+Cohort 30 (English/Romanian) KICKOFF,Nov 3,1:00 pm-2:00 pm EET,7:00 am-8:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 30 (English/Romanian) Session 1,Nov 10,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Meeting ID: 890 0299 8467
+Cohort 30 (English/Romanian) Session 2,Nov 12,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,Passcode: 622385
+Cohort 30 (English/Romanian) Session 3,Nov 17,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 30 (English/Romanian) Session 4,Nov 19,1:00 pm-4:00 pm EET,7:00 am-10:00 am,Romania,,English material,Romanian,Tudor Galos,Agnes Szakacs-Laszlo,,
+Cohort 31(English/Greek) KICKOFF,Nov 4,9:00 am-10:00 am CET,3:00-4:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 31(English/Greek) Session 1,Nov 10,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Meeting ID: 890 0299 8467
+Cohort 31(English/Greek) Session 2,Nov 13,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,Passcode: 622385
+Cohort 31(English/Greek) Session 3,Nov 18,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 31(English/Greek) Session 4,Nov 20,9:00 am-12:00 pm CET,3:00 am-6:00 am,Greece,,English material,Greek,Alex Tantos,Alexandros Daniilidis,,
+Cohort 32(Japanese) KICKOFF,Nov 4,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,,Japanese Material,Japanese,,,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 32(Japanese) Session 1,Nov 10,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,Meeting ID: 890 0299 8467
+Cohort 32(Japanese) Session 2,Nov 12,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,Passcode: 622385
+Cohort 32(Japanese) Session 3,Nov 17,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,
+Cohort 32(Japanese) Session 4,Nov 19,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,
+Cohort 33(English/Polish) KICKOFF,Nov 5,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Poland,,English material,Polish,,,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 33(English/Polish) Session 1,Nov 12,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Poland,Clock change,English material,Polish,,,,,Meeting ID: 890 0299 8467
+Cohort 33(English/Polish) Session 2,Nov 13,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Poland,Clock change,English material,Polish,,,,,Passcode: 622385
+Cohort 33(English/Polish) Session 3,Nov 19,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Poland,,English material,Polish,,,,,
+Cohort 33(English/Polish) Session 4,Nov 20,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Poland,,English material,Polish,,,,,
+Cohort 34(Japanese) KICKOFF,Nov 5,9:00 am-10:00 am JST,8:00 pm-9:00 pm,Japan,,Japanese Material,Japanese,,,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 34(Japanese) Session 1,Nov 13,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,Meeting ID: 890 0299 8467
+Cohort 34(Japanese) Session 2,Nov 18,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,Passcode: 622385
+Cohort 34(Japanese) Session 3,Nov 20,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,
+Cohort 34(Japanese) Session 4,Nov 25,9:00 am-12:00 pm JST,8:00 pm-11:00 pm,Japan,,Japanese Material,Japanese,,,,,
+Cohort 35(Dutch) KICKOFF,Nov 5,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 35(Dutch) Session 1,Nov 13,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 35(Dutch) Session 2,Nov 18,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 35(Dutch) Session 3,Nov 20,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 35(Dutch) Session 4,Nov 25,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 36(Spanish) KICKOFF,Nov 12,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 36(Spanish) Session 1,Nov 17,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,Meeting ID: 890 0299 8467
+Cohort 36(Spanish) Session 2,Nov 19,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,Passcode: 622385
+Cohort 36(Spanish) Session 3,Nov 24,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,
+Cohort 36(Spanish) Session 4,Nov 26,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Spain,,Spanish Materials,Spanish,Nico Lopez,,
+Cohort 37(Czech) KICKOFF,Nov 12,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Czech,,Czech Material,Czech,,,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 37(Czech) Session 1,Nov 19,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,,,,,Meeting ID: 890 0299 8467
+Cohort 37(Czech) Session 2,Nov 24,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,,,,,Passcode: 622385
+Cohort 37(Czech) Session 3,Nov 26,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,,,,,
+Cohort 37(Czech) Session 4,Dec 1,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Czech,,Czech Material,Czech,,,,,
+Cohort 38(Slovak/Czech) KICKOFF,Nov 13,1:00 pm-2:00 pm CET,7:00 am-8:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 38(Slovak/Czech) Session 1,Nov 18,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,Meeting ID: 890 0299 8467
+Cohort 38(Slovak/Czech) Session 2,Nov 20,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,Passcode: 622385
+Cohort 38(Slovak/Czech) Session 3,Nov 25,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,
+Cohort 38(Slovak/Czech) Session 4,Nov 26,1:00 pm-4:00 pm CET,7:00 am-10:00 am,Slovakia,,Slovak Materials,Local/Czech,Martina Kuchtová,,
+Cohort 39(Dutch) KICKOFF,Nov 13,9:00 am-10:00 am CET,3:00-4:00 am,Netherlands,TC,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 39(Dutch) Session 1,Nov 18,9:00 am-12:00 pm CET,3:00 am-6:00 am,Netherlands,TC,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 39(Dutch) Session 2,Nov 20,9:00 am-12:00 pm CET,3:00 am-6:00 am,Netherlands,TC,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 39(Dutch) Session 3,Nov 25,9:00 am-12:00 pm CET,3:00 am-6:00 am,Netherlands,TC,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 39(Dutch) Session 4,Nov 26,9:00 am-12:00 pm CET,3:00 am-6:00 am,Netherlands,TC,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 40(Dutch) KICKOFF,Jan 5,9:00 am-10:00 am,3:00 am-4:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 40(Dutch) Session 1,Jan 12,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 40(Dutch) Session 2,Jan 14,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 40(Dutch) Session 3,Jan 21,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 40(Dutch) Session 4,Jan 26,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 41(Dutch) KICKOFF,Jan 5,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 41(Dutch) Session 1,Jan 12,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 41(Dutch) Session 2,Jan 14,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 41(Dutch) Session 3,Jan 21,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 41(Dutch) Session 4,Jan 26,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 42(Dutch) KICKOFF,Jan 7,9:00 am-10:00 am,3:00 am-4:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 42(Dutch) Session 1,Jan 13,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 42(Dutch) Session 2,Jan 15,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 42(Dutch) Session 3,Jan 20,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 42(Dutch) Session 4,Jan 22,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 43(Dutch) KICKOFF,Jan 7,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 43(Dutch) Session 1,Jan 13,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 43(Dutch) Session 2,Jan 15,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 43(Dutch) Session 3,Jan 20,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 43(Dutch) Session 4,Jan 22,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 44(Dutch) KICKOFF,Jan 26,9:00 am-10:00 am,3:00 am-4:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 44(Dutch) Session 1,Feb 2,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 44(Dutch) Session 2,Feb 4,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 44(Dutch) Session 3,Feb 9,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 44(Dutch) Session 4,Feb 11,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 45(Dutch) KICKOFF,Jan 26,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 45(Dutch) Session 1,Feb 2,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 45(Dutch) Session 2,Feb 4,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 45(Dutch) Session 3,Feb 9,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 45(Dutch) Session 4,Feb 11,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 46(Dutch) KICKOFF,Jan 27,9:00 am-10:00 am,3:00 am-4:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 46(Dutch) Session 1,Feb 3,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 46(Dutch) Session 2,Feb 5,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 46(Dutch) Session 3,Feb 10,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 46(Dutch) Session 4,Feb 12,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 47(Dutch) KICKOFF,Jan 27,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 47(Dutch) Session 1,Feb 3,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 47(Dutch) Session 2,Feb 5,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 47(Dutch) Session 3,Feb 10,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 47(Dutch) Session 4,Feb 12,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 48(Dutch) KICKOFF,Feb 17,9:00 am-10:00 am,3:00 am-4:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 48(Dutch) Session 1,Feb 23,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 48(Dutch) Session 2,Feb 25,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 48(Dutch) Session 3,Mar 2,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 48(Dutch) Session 4,Mar 4,9:00 am-12:00 pm,3:00 am-6:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 49(Dutch) KICKOFF,Feb 17,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 49(Dutch) Session 1,Feb 23,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 49(Dutch) Session 2,Feb 25,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 49(Dutch) Session 3,Mar 2,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 49(Dutch) Session 4,Mar 4,1:00 pm-4:00 pm,7:00 am-10:00 am,Netherlands,,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 50 (English) KICKOFF,Feb 18,1:00 pm-2:00 pm,7:00 am-8:00 am,English,,English material,English,Ryan Ellison,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 50 (English) Session 1,Feb 24,1:00 pm-4:00 pm,7:00 am-10:00 am,English,,English material,English,Ryan Ellison,,Meeting ID: 890 0299 8467
+Cohort 50 (English) Session 2,Feb 26,1:00 pm-4:00 pm,7:00 am-10:00 am,English,,English material,English,Ryan Ellison,,Passcode: 622385
+Cohort 50 (English) Session 3,Mar 3,1:00 pm-4:00 pm,7:00 am-10:00 am,English,,English material,English,Ryan Ellison,,
+Cohort 50 (English) Session 4,Mar 5,1:00 pm-4:00 pm,7:00 am-10:00 am,English,,English material,English,Ryan Ellison,,
+Cohort 51 (English) KICKOFF,Mar 2,1:00 pm-2:00 pm,7:00 am-8:00 am,English,,English material,English,Ryan Ellison,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 51 (English) Session 1,Mar 9,1:00 pm-4:00 pm,8:00 am-11:00 am,English,Clock change,English material,English,Ryan Ellison,,Meeting ID: 890 0299 8467
+Cohort 51 (English) Session 2,Mar 11,1:00 pm-4:00 pm,8:00 am-11:00 am,English,Clock change,English material,English,Ryan Ellison,,Passcode: 622385
+Cohort 51 (English) Session 3,Mar 16,1:00 pm-4:00 pm,8:00 am-11:00 am,English,Clock change,English material,English,Ryan Ellison,,
+Cohort 51 (English) Session 4,Mar 18,1:00 pm-4:00 pm,8:00 am-11:00 am,English,Clock change,English material,English,Ryan Ellison,,
+Cohort 52(Dutch) KICKOFF,Mar 2,1:00 pm-2:00 pm,7:00 am-8:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 52(Dutch) Session 1,Mar 9,1:00 pm-4:00 pm,8:00 am-11:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 52(Dutch) Session 2,Mar 11,1:00 pm-4:00 pm,8:00 am-11:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 52(Dutch) Session 3,Mar 16,1:00 pm-4:00 pm,8:00 am-11:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 52(Dutch) Session 4,Mar 18,1:00 pm-4:00 pm,8:00 am-11:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 53(English/Polish) KICKOFF,Mar 9,9:00 am-10:00 am,4:00 am-5:00 am,Poland,Clock change,English material,Polish,,,,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 53(English/Polish) Session 1,Mar 16,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,,Meeting ID: 890 0299 8467
+Cohort 53(English/Polish) Session 2,Mar 18,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,,Passcode: 622385
+Cohort 53(English/Polish) Session 3,Mar 23,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,,
+Cohort 53(English/Polish) Session 4,Mar 25,9:00 am-12:00 pm,4:00 am-6:00 am,Poland,Clock change,English material,Polish,,,,,
+Cohort 54(Dutch) KICKOFF,Mar 10,9:00 am-10:00 am,4:00 am-5:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,https://datasociety.zoom.us/j/89002998467?pwd=xNpV3peJ1aXfC6glDrs9ZnYkraLVqQ.1
+Cohort 54(Dutch) Session 1,Mar 17,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,Meeting ID: 890 0299 8467
+Cohort 54(Dutch) Session 2,Mar 19,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,Passcode: 622385
+Cohort 54(Dutch) Session 3,Mar 25,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,
+Cohort 54(Dutch) Session 4,Mar 26,9:00 am-12:00 pm,4:00 am-6:00 am,Netherlands,Clock change,Dutch Material,Dutch,Michelle Hogeveen,,`;
 
 
 // Common tasks and responsible roles from the uploaded image
@@ -154,6 +279,13 @@ const cohort13CommonTaskDates = {
 const ROMANIAN_CARD_COLOR = '#fbbc04';
 const GREEK_CARD_COLOR = '#4285f4';
 const BELGIUM_CARD_COLOR = '#34a853';
+const NETHERLANDS_CARD_COLOR = '#ea4335'; // Added for Netherlands
+const ENGLISH_CARD_COLOR = '#4285f4'; // Reusing for English
+const JAPANESE_CARD_COLOR = '#fbbc04'; // Reusing for Japanese
+const POLISH_CARD_COLOR = '#34a853'; // Added for Poland
+const SPANISH_CARD_COLOR = '#ea4335'; // Added for Spain
+const CZECH_CARD_COLOR = '#fbbc04'; // Added for Czech
+const SLOVAKIA_CARD_COLOR = '#4285f4'; // Added for Slovakia
 
 
 // Helper to parse date string (e.g., "Sep 2") into a Date object, assuming appropriate year
@@ -196,19 +328,28 @@ function parseLineDetails(line) {
   // Split by comma, ignoring commas inside double quotes
   const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
 
-  // Expected CSV columns: Cohort/Session,Date,Local Time,Time (ET),Country,Time Notes,Materials,Instruction Language,Instructor,TA,Notes,Zoom Link
-  if (values.length < 10) { // Ensure enough columns for all new header info
-      console.warn("Skipping malformed line (less than 10 columns):", line);
-      return null;
-  }
+  // Safely access values, providing empty string as default if column is missing
+  // Updated to expect all 13 columns based on the header
+  const fullCohortSession = (values[0] || '').trim();
+  const rawDate = (values[1] || '').trim();
+  const localTime = (values[2] || '').trim(); // Added
+  const timeET = (values[3] || '').trim(); // Added
+  const country = (values[4] || '').trim();
+  const timeNotes = (values[5] || '').trim(); // Added
+  const materials = (values[6] || '').trim();
+  const instructionLanguage = (values[7] || '').trim();
+  const instructor = (values[8] || '').trim();
+  const ta = (values[9] || '').trim();
+  const dsSupport = (values[10] || '').trim();
+  const notes = (values[11] || '').trim();
+  const zoomLink = (values[12] || '').trim();
 
-  const fullCohortSession = values[0].trim();
-  const rawDate = values[1].trim();
-  const country = values[4].trim(); // Country is at index 4
-  const materials = values[6].trim(); // Materials is at index 6
-  const instructionLanguage = values[7].trim(); // Instruction Language is at index 7
-  const instructor = values[8].trim(); // Instructor is at index 8
-  const ta = values[9].trim(); // TA is at index 9
+
+  // It's better to return null if essential fields like fullCohortSession or rawDate are missing
+  if (!fullCohortSession || !rawDate) {
+    console.warn("Skipping malformed line (missing essential fields):", line);
+    return null;
+  }
 
   // Format date to "Mon Day"
   const dateObj = new Date(rawDate);
@@ -220,10 +361,17 @@ function parseLineDetails(line) {
   details.sessionType = cohortNameMatch ? cohortNameMatch[2].trim() : '';
 
   details.country = country;
+  details.localTime = localTime; // Added
+  details.timeET = timeET; // Added
+  details.timeNotes = timeNotes; // Added
   details.materials = materials;
   details.instructionLanguage = instructionLanguage;
   details.instructor = instructor;
   details.ta = ta;
+  details.dsSupport = dsSupport;
+  details.notes = notes;
+  details.zoomLink = zoomLink;
+
 
   return details;
 }
@@ -245,7 +393,7 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
       return;
     }
 
-    const { fullCohortName, sessionType, date, country, instructor, ta, materials, instructionLanguage } = parsedDetails;
+    const { fullCohortName, sessionType, date, country, instructor, ta, materials, instructionLanguage, dsSupport, notes, zoomLink, localTime, timeET, timeNotes } = parsedDetails;
     const cohortKey = fullCohortName.replace(/[\s().,\/&]/g, '-').toLowerCase();
 
     if (!cohortsMap.has(cohortKey)) {
@@ -256,10 +404,16 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
         headerInfo: {
           date: '',
           country: '',
+          localTime: '', // Added
+          timeET: '', // Added
+          timeNotes: '', // Added
           materials: '',
           instructionLanguage: '',
           instructor: '',
           ta: '',
+          dsSupport: '',
+          notes: '',
+          zoomLink: ''
         },
         sessions: [],
       });
@@ -271,10 +425,16 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
     if (currentCohort.sessions.length === 0) {
       currentCohort.headerInfo.date = date;
       currentCohort.headerInfo.country = country;
+      currentCohort.headerInfo.localTime = localTime; // Added
+      currentCohort.headerInfo.timeET = timeET; // Added
+      currentCohort.headerInfo.timeNotes = timeNotes; // Added
       currentCohort.headerInfo.materials = materials;
       currentCohort.headerInfo.instructionLanguage = instructionLanguage;
       currentCohort.headerInfo.instructor = instructor;
       currentCohort.headerInfo.ta = ta;
+      currentCohort.headerInfo.dsSupport = dsSupport;
+      currentCohort.headerInfo.notes = notes;
+      currentCohort.headerInfo.zoomLink = zoomLink;
     }
 
     currentCohort.sessions.push({
@@ -290,7 +450,7 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
   const finalCohorts = Array.from(cohortsMap.values());
 
   const baseCommonTasks = commonTasksData.map((task, index) => {
-    const responsibleRole = task.roles === undefined || task.roles === '' ? 'EH' : task.roles;
+    const responsibleRole = (task.roles === undefined || task.roles === '') ? 'EH' : task.roles;
     return {
       id: `common-task-${index}`,
       name: `${task.name} (Responsible: ${responsibleRole})`,
@@ -304,11 +464,14 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
   return finalCohorts.map(cohort => {
     const tasksForThisCohort = [...cohort.sessions];
 
+    // Use the specific cohort's name to check for C13
+    const isCohort13 = cohort.name.includes('Cohort 13 (English/Romanian)');
+
     baseCommonTasks.forEach(baseTask => {
       let taskName = baseTask.name;
       let dueDate = null;
 
-      if (cohort.name.includes('Cohort 13 (English/Romanian)')) {
+      if (isCohort13) {
         const baseTaskNameWithoutRoles = baseTask.name.split(' (Responsible:')[0].trim();
         const c13DateStr = cohort13CommonTaskDates[baseTaskNameWithoutRoles];
         if (c13DateStr) {
@@ -332,6 +495,10 @@ const parseAndStructureData = (rawSessionData, commonTasksData) => {
       ...cohort,
       tasks: tasksForThisCohort,
     };
+  }).sort((a, b) => { // Sort cohorts by the date of their first session
+    const dateA = new Date(a.sessions[0]?.dueDate || '9999-12-31');
+    const dateB = new Date(b.sessions[0]?.dueDate || '9999-12-31');
+    return dateA.getTime() - dateB.getTime();
   });
 };
 
@@ -394,18 +561,33 @@ const CohortCard = ({ cohort, onToggleTaskStatus }) => {
 
   // Determine background color based on cohort name
   let cardBgColor = '';
-  if (cohort.name.includes('Romania')) { // Check for Romania in the name
+  if (cohort.name.includes('Romania')) { 
     cardBgColor = ROMANIAN_CARD_COLOR;
-  } else if (cohort.name.includes('Greece')) { // Check for Greece in the name
+  } else if (cohort.name.includes('Greece')) { 
     cardBgColor = GREEK_CARD_COLOR;
-  } else if (cohort.name.includes('Belgium')) { // Check for Belgium in the name
+  } else if (cohort.name.includes('Belgium')) { 
     cardBgColor = BELGIUM_CARD_COLOR;
+  } else if (cohort.name.includes('Netherlands') || cohort.name.includes('Dutch')) {
+    cardBgColor = NETHERLANDS_CARD_COLOR;
+  } else if (cohort.name.includes('English')) {
+    cardBgColor = ENGLISH_CARD_COLOR;
+  } else if (cohort.name.includes('Japan') || cohort.name.includes('Japanese')) {
+    cardBgColor = JAPANESE_CARD_COLOR;
+  } else if (cohort.name.includes('Poland') || cohort.name.includes('Polish')) {
+    cardBgColor = POLISH_CARD_COLOR;
+  } else if (cohort.name.includes('Spanish')) {
+    cardBgColor = SPANISH_CARD_COLOR;
+  } else if (cohort.name.includes('Czech')) {
+    cardBgColor = CZECH_CARD_COLOR;
+  } else if (cohort.name.includes('Slovak') || cohort.name.includes('Slovakia')) {
+    cardBgColor = SLOVAKIA_CARD_COLOR;
   }
+
 
   const cardStyle = cardBgColor ? { backgroundColor: cardBgColor } : {};
 
   return (
-    <div id={cohort.docId} className={`p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100`} style={cardStyle}>
+    <div id={cohort.docId} className={`p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow duration-300 border border-gray-100`} style={cardBgColor ? { backgroundColor: cardBgColor } : {}}>
       <div className="flex justify-between items-center mb-2">
         <h3 className="text-xl font-bold text-gray-900">
           {cohort.name}
@@ -425,6 +607,24 @@ const CohortCard = ({ cohort, onToggleTaskStatus }) => {
           <p className="flex items-center gap-1 mb-1">
             <Globe className="w-4 h-4 text-black" />
             <span className="font-semibold">Country:</span> {headerInfo.country}
+          </p>
+        )}
+        {headerInfo.localTime && (
+          <p className="flex items-center gap-1 mb-1">
+            <Clock className="w-4 h-4 text-black" />
+            <span className="font-semibold">Local Time:</span> {headerInfo.localTime}
+          </p>
+        )}
+        {headerInfo.timeET && (
+          <p className="flex items-center gap-1 mb-1">
+            <Clock className="w-4 h-4 text-black" />
+            <span className="font-semibold">Time (ET):</span> {headerInfo.timeET}
+          </p>
+        )}
+        {headerInfo.timeNotes && (
+          <p className="flex items-center gap-1 mb-1">
+            <MessageSquareText className="w-4 h-4 text-black" />
+            <span className="font-semibold">Time Notes:</span> {headerInfo.timeNotes}
           </p>
         )}
         {headerInfo.materials && ( // Display materials
@@ -451,7 +651,25 @@ const CohortCard = ({ cohort, onToggleTaskStatus }) => {
             <span className="font-semibold">TA:</span> {headerInfo.ta}
           </p>
         )}
-        {(!headerInfo.date && !headerInfo.country && !headerInfo.materials && !headerInfo.instructionLanguage && !headerInfo.instructor && !headerInfo.ta) && (
+        {headerInfo.dsSupport && (
+          <p className="flex items-center gap-1">
+            <User className="w-4 h-4 text-black" />
+            <span className="font-semibold">DS Support:</span> {headerInfo.dsSupport}
+          </p>
+        )}
+        {headerInfo.notes && (
+          <p className="flex items-center gap-1">
+            <MessageSquareText className="w-4 h-4 text-black" />
+            <span className="font-semibold">Notes:</span> {headerInfo.notes}
+          </p>
+        )}
+        {headerInfo.zoomLink && (
+          <p className="flex items-center gap-1">
+            <Globe className="w-4 h-4 text-black" />
+            <span className="font-semibold">Zoom Link:</span> <a href={headerInfo.zoomLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Link</a>
+          </p>
+        )}
+        {(!headerInfo.date && !headerInfo.country && !headerInfo.materials && !headerInfo.instructionLanguage && !headerInfo.instructor && !headerInfo.ta && !headerInfo.dsSupport && !headerInfo.notes && !headerInfo.zoomLink) && (
             <p className="text-gray-500 italic">No specific header info available.</p>
         )}
       </div>
@@ -476,13 +694,12 @@ function App() {
   const [userIdentifier, setUserIdentifier] = useState('Signing in...');
   const [dueTasksNext7Days, setDueTasksNext7Days] = useState([]);
   const cohortsCollectionRef = collection(db, 'cohorts');
-
-  // New state to manage seeding status
-  const [isSeeded, setIsSeeded] = useState(false);
+  const initialSetupDone = useRef(false); // Ref to track if initial setup is done
 
   // This effect handles authentication and initial data seeding.
   useEffect(() => {
-    // This function will be called on mount to sign in and check for data
+    if (initialSetupDone.current) return; // Prevent re-running after initial setup
+
     const setupAndSeed = async () => {
       try {
         await signInAnonymously(auth);
@@ -499,13 +716,17 @@ function App() {
           });
           await batch.commit();
           console.log("Initial data upload complete.");
+        } else {
+          console.log("Database already has data. Setting up real-time listener.");
         }
       } catch (error) {
         console.error("Failed to authenticate or initialize data:", error);
+      } finally {
+        initialSetupDone.current = true; // Mark initial setup as done
       }
     };
     setupAndSeed();
-  }, [cohortsCollectionRef]); // Empty dependency array ensures this runs only once
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   // This effect handles the real-time data listener.
   useEffect(() => {
